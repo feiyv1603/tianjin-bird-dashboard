@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>天津市鸟类分布 · 多维大屏</title>
+  
+  <!-- 引入 ECharts 和 jQuery -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  
+  <!-- 【引入改造后的 JS 数据文件】 -->
+  <script src="data_tianjin.js"></script>
+  <script src="data_final.js"></script>
+  <script src="data_info.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      padding: 8px 20px 12px;
+      font-family: 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(145deg, #e9f2f9 0%, #d4e6f1 100%);
+      overflow: hidden;
+      height: 100vh;
+      color: #1a2e3b;
+      position: relative;
+    }
+
+    .container { margin-top: -4px; }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 20px;
+      box-shadow: 0 12px 28px rgba(0, 40, 60, 0.12), 0 2px 8px rgba(0, 60, 90, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      padding: 16px 18px;
+      transition: box-shadow 0.25s ease;
+    }
+    .panel:hover { box-shadow: 0 18px 32px rgba(0, 90, 120, 0.18); }
+
+    /* 顶部栏 */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: relative;
+      z-index: 999;
+    }
+    .main-title {
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #0b5e7c, #2b9e8f, #3b8c6e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 1.5px;
+      text-shadow: 2px 2px 12px rgba(46, 125, 100, 0.15);
+      margin: 0;
+    }
+    .sub-title {
+      font-size: 15px;
+      font-weight: 400;
+      color: #3e7b8f;
+      letter-spacing: 2px;
+      background: rgba(88, 175, 148, 0.12);
+      padding: 6px 18px;
+      border-radius: 40px;
+      border: 1px solid rgba(88, 175, 148, 0.3);
+      backdrop-filter: blur(4px);
+      cursor: default;
+      position: relative;
+      z-index: 1000; 
+    }
+
+    /* 悬浮提示框 */
+    .sub-title .hover-tooltip {
+      visibility: hidden;
+      opacity: 0;
+      width: 260px;
+      background: rgba(255, 255, 255, 0.95); 
+      backdrop-filter: blur(12px);
+      color: #1a4a55; 
+      text-align: left;
+      border-radius: 14px;
+      padding: 14px 18px;
+      position: absolute;
+      top: 130%;
+      right: 0;
+      z-index: 1001; 
+      box-shadow: 0 10px 25px rgba(0, 50, 60, 0.15); 
+      border: 1px solid rgba(120, 190, 170, 0.4);
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+      font-size: 14px;
+      line-height: 1.8;
+      letter-spacing: 0.4px;
+      pointer-events: none;
+    }
+    .sub-title .hover-tooltip::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      right: 24px;
+      border-width: 7px;
+      border-style: solid;
+      border-color: transparent transparent rgba(255, 255, 255, 0.95) transparent;
+    }
+    .sub-title:hover .hover-tooltip { visibility: visible; opacity: 1; }
+    .hover-tooltip .tip-row { display: flex; margin-bottom: 6px; white-space: nowrap; }
+    .hover-tooltip .tip-value { color: #22505c; font-weight: 500; }
+    .hover-tooltip .tip-value.highlight { color: #0b5e7c; font-weight: 700; }
+
+    /* 筛选区 */
+    .filter-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(6px);
+      padding: 8px 18px;
+      border-radius: 60px;
+      border: 1px solid rgba(100, 180, 160, 0.25);
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 4px 10px rgba(0, 60, 70, 0.05);
+      position: relative;
+      z-index: 10;
+    }
+    .filter-bar label { font-weight: 500; color: #1c5e6e; margin-right: 4px; font-size: 15px; }
+    select {
+      padding: 7px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      border-radius: 40px;
+      border: 1px solid #a3cfda;
+      background: #ffffffdd;
+      backdrop-filter: blur(4px);
+      color: #135a6b;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.25s;
+      box-shadow: 0 2px 6px rgba(0, 80, 80, 0.05);
+      min-width: 150px;
+    }
+    select:hover { border-color: #3fa88c; box-shadow: 0 0 0 3px rgba(63, 168, 140, 0.15); }
+    select:focus { border-color: #2b9e8f; box-shadow: 0 0 0 3px rgba(43, 158, 143, 0.2); }
+
+    /* 布局 */
+    .dashboard { display: flex; gap: 16px; height: calc(100vh - 115px); min-height: 480px; }
+    .left-panel {
+      width: 25%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: linear-gradient(145deg, #f9fdfe, #eef7f5);
+      overflow: hidden;
+    }
+    .left-panel img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      background: linear-gradient(120deg, #b8d8d0, #9ac7bf);
+      border: 2px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 8px 18px rgba(30, 100, 80, 0.15);
+      transition: transform 0.3s;
+    }
+    .left-panel img:hover { transform: scale(1.01); }
+    .left-panel h2 { font-size: 22px; font-weight: 700; color: #0b4b55; margin: 0 0 8px 0; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+    .left-panel h2::before { content: '🐦'; font-size: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+    
+    .tag {
+      display: inline-block;
+      background: #d9f0ea;
+      color: #1a7062;
+      padding: 5px 12px;
+      border-radius: 40px;
+      margin-right: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      border: 1px solid #b3dfd3;
+      box-shadow: 0 1px 4px rgba(0, 100, 80, 0.05);
+    }
+    .left-panel p { color: #2e5a66; line-height: 1.7; font-size: 14px; margin: 6px 0; }
+    .left-panel strong { color: #0b4b55; font-weight: 600; }
+
+    .intro-box {
+      flex-grow: 1;
+      overflow-y: auto;
+      margin-top: 6px;
+      padding-right: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: #7fc9b3 #e2f0eb;
+    }
+    .intro-box::-webkit-scrollbar { width: 5px; }
+    .intro-box::-webkit-scrollbar-track { background: #e2f0eb; border-radius: 10px; }
+    .intro-box::-webkit-scrollbar-thumb { background: #7fc9b3; border-radius: 10px; }
+
+    .about-btn {
+      background: linear-gradient(135deg, #2b9e8f, #1c7b6e);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 50px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      transition: all 0.3s;
+      box-shadow: 0 6px 16px rgba(30, 130, 110, 0.35);
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .about-btn:hover { background: linear-gradient(135deg, #34b8a6, #218a7a); transform: translateY(-2px); box-shadow: 0 10px 22px rgba(30, 130, 110, 0.45); }
+    .about-btn:active { transform: translateY(1px); }
+
+    .center-panel { width: 40%; background: radial-gradient(circle at 30% 30%, #ffffff, #f2faf8); }
+    .right-panel { width: 35%; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 1; }
+    
+    .chart-box {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(6px);
+      border-radius: 20px;
+      padding: 12px 8px 6px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 20px rgba(0, 50, 60, 0.08);
+      transition: box-shadow 0.3s;
+    }
+    .chart-box:hover { box-shadow: 0 12px 26px rgba(0, 90, 110, 0.12); }
+
+    #mapChart, #barChart, #lineChart { width: 100%; height: 100%; border-radius: 14px; }
+
+    .modal-mask {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(20, 50, 50, 0.35); backdrop-filter: blur(8px); z-index: 9999;
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: linear-gradient(145deg, #f9fdfc, #e7f5f0);
+      padding: 32px 36px; border-radius: 28px; width: 440px; max-width: 90%;
+      box-shadow: 0 30px 50px rgba(0, 50, 40, 0.3); border: 1px solid rgba(150, 210, 190, 0.5);
+      position: relative; color: #1a3e3a;
+    }
+    .modal-content h3 { margin-top: 0; color: #0a5a4f; font-size: 24px; font-weight: 700; border-left: 6px solid #3fa88c; padding-left: 16px; margin-bottom: 22px; }
+    .modal-content p { color: #26655c; font-size: 14.5px; line-height: 1.8; margin: 12px 0; }
+    .close-btn {
+      position: absolute; top: 18px; right: 20px; cursor: pointer; font-size: 28px; color: #5ea394;
+      border: none; background: transparent; line-height: 1; transition: all 0.2s;
+      width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+    }
+    .close-btn:hover { color: #0f6b5b; background: rgba(70, 160, 140, 0.15); transform: rotate(90deg); }
+
+    @media (max-width: 1400px) {
+      .main-title { font-size: 22px; }
+      .left-panel h2 { font-size: 20px; }
+      .filter-bar { gap: 8px; }
+      select { min-width: 120px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <h1 class="main-title">天津市鸟类分布 · 多维大屏</h1>
+      <div class="sub-title">
+        大数据可视化
+        <div class="hover-tooltip">
+          <div class="tip-row"><span class="tip-value">南开大学·大数据可视化基础</span></div>
+          <div class="tip-row"><span class="tip-value highlight">特别鸣谢：指导老师高裴裴</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <label> 鸟类：</label>
+      <select id="birdSelect"><option value="all">全部鸟类</option></select>
+      <label> 年份：</label>
+      <select id="yearSelect"><option value="all">全部年份</option></select>
+    </div>
+
+    <div class="dashboard">
+      <div class="panel left-panel">
+        <img id="birdImg" src="" alt="鸟类图片">
+        <h2 id="birdName">全部鸟类</h2>
+        <div style="margin-bottom: 8px;">
+          <span class="tag" id="birdOrder">目</span>
+          <span class="tag" id="birdFamily">科</span>
+        </div>
+        <p><strong>学名：</strong><span id="birdLatin">-</span></p>
+        <div class="intro-box">
+          <p><strong>简介：</strong><span id="birdIntro">请在下拉框中选择一种具体的鸟类查看详情。</span></p>
+        </div>
+        <button class="about-btn" id="aboutBtn">🌿 关于本项目</button>
+      </div>
+
+      <div class="panel center-panel">
+        <div id="mapChart"></div>
+      </div>
+
+      <div class="right-panel">
+        <div class="panel chart-box"><div id="barChart"></div></div>
+        <div class="panel chart-box"><div id="lineChart"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="aboutModal">
+    <div class="modal-content">
+      <button class="close-btn" id="closeModal">&times;</button>
+      <h3>关于本项目</h3>
+      <p><strong>作者：</strong>邓雨函</p>
+      <p><strong>数据来源：</strong>中国观鸟记录中心 / 中国观鸟数据集</p>
+      <p><strong>简介：</strong>本项目通过多维图表展现天津市各区县观鸟情况及随时间的数量变化趋势。地图基于 GeoJSON 绘制，仅统计被目击数量前20名的鸟类，此数量仅代表鸟类目击情况，存在同一只鸟被多次目击的情况，不代表真实鸟类分布。</p>
+      <p style="color: #6c9e92; font-size: 12px; margin-top: 20px;">* 注释：2024年数据量激增可能与中国观鸟记录中心网站更新有关。</p>
+    </div>
+  </div>
+
+  <script>
+    $(document).ready(function() {
+        var mapChart = echarts.init(document.getElementById('mapChart'));
+        var barChart = echarts.init(document.getElementById('barChart'));
+        var lineChart = echarts.init(document.getElementById('lineChart'));
+
+        var rawData = [];
+        var birdInfo = {};
+        var hideLabels = ['和平区', '河东区', '河西区', '南开区', '河北区', '红桥区'];
+
+        // 检查数据变量是否加载成功
+        if (typeof tjGeojson === 'undefined' || typeof finalData === 'undefined' || typeof birdInfoData === 'undefined') {
+            alert("数据加载失败！\n\n请检查您的文件夹里是否包含 data_tianjin.js, data_final.js, data_info.js，并且确认这三个文件是否正确设置了变量名（var xxx = ）。");
+            return;
+        }
+
+        // 赋值
+        var geoJson = tjGeojson;
+        rawData = finalData;
+        birdInfo = birdInfoData;
+
+        try {
+            echarts.registerMap('tianjin', geoJson);
+            generateDropdowns(rawData);
+            updateAll('all', 'all');
+
+            $('#birdSelect, #yearSelect').on('change', function () {
+                updateAll($('#birdSelect').val(), $('#yearSelect').val());
+            });
+        } catch(e) {
+            alert("图表渲染出错！请按 F12 打开控制台查看报错信息。");
+            console.error(e);
+        }
+
+        function normalizeYear(y) {
+            if (y === undefined || y === null) return null;
+            var s = String(y).trim();
+            if (!s || s === 'nan' || s === '未知' || s === 'NaN') return null;
+            return s;
+        }
+        
+        function normalizeMonth(m) {
+            if (m === undefined || m === null) return null;
+            var s = String(m).trim();
+            if (!s || s === 'nan' || s === '未知' || s === 'NaN') return null;
+            var n = parseInt(s, 10);
+            if (isNaN(n) || n < 1 || n > 12) return null;
+            return n < 10 ? '0' + n : String(n);
+        }
+
+        function generateDropdowns(data) {
+            var birds = new Set();
+            var years = new Set();
+            data.forEach(function (item) {
+                if (item.bird && item.bird !== 'nan') birds.add(item.bird);
+                var y = normalizeYear(item.year);
+                if (y) years.add(y);
+            });
+            Array.from(birds).sort().forEach(b => $('#birdSelect').append('<option value="' + b + '">' + b + '</option>'));
+            Array.from(years).sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+                .forEach(y => $('#yearSelect').append('<option value="' + y + '">' + y + '</option>'));
+        }
+
+        function updateAll(birdFilter, yearFilter) {
+            updateLeftPanel(birdFilter);
+
+            var filteredData = rawData.filter(function (item) {
+                var matchBird = (birdFilter === 'all' || item.bird === birdFilter);
+                var matchYear = (yearFilter === 'all' || normalizeYear(item.year) === yearFilter);
+                return matchBird && matchYear;
+            });
+
+            renderMap(filteredData);
+            renderBarChart(filteredData);
+            renderLineChart(filteredData, yearFilter);
+        }
+
+        function updateLeftPanel(bird) {
+            if (bird === 'all') {
+                $('#birdImg').attr('src', 'https://images.unsplash.com/photo-1444464666168-49d633b86797?auto=format&fit=crop&w=400&q=80');
+                $('#birdName').text('全部鸟类');
+                $('#birdOrder').text('总览');
+                $('#birdFamily').text('总览');
+                $('#birdLatin').text('-');
+                $('#birdIntro').text('当前显示天津市所有记录鸟类的综合分布。请选择特定鸟类以查看详细档案及专项图表。');
+            } else {
+                var info = birdInfo[bird] || {};
+                // 兼容你的 data_info.js 里图片路径，如果读取不到就用默认图
+                $('#birdImg').attr('src', info.image || 'https://via.placeholder.com/400x200?text=No+Image');
+                $('#birdName').text(bird);
+                $('#birdOrder').text(info.order || '未知');
+                $('#birdFamily').text(info.family || '未知');
+                $('#birdLatin').text(info.latin_name || '未知');
+                $('#birdIntro').text(info.intro || '暂无简介。');
+            }
+        }
+
+        function renderMap(data) {
+            var districtCounts = {};
+            data.forEach(function (item) {
+                if (!item.district) return;
+                var dName = item.district.endsWith('区') ? item.district : item.district + '区';
+                if (!districtCounts[dName]) districtCounts[dName] = 0;
+                districtCounts[dName] += Number(item.count) || 0;
+            });
+
+            var mapData = [];
+            for (var district in districtCounts) {
+                mapData.push({ name: district, value: districtCounts[district] });
+            }
+
+            var maxVal = mapData.length > 0 ? Math.max(...mapData.map(d => d.value)) : 10000;
+
+            var option = {
+                title: { text: '各区县数量分布', left: 'center', top: 6, textStyle: { fontSize: 14, color: '#0b4b55', fontWeight: 500 } },
+                tooltip: { trigger: 'item', formatter: '{b}<br/>{c} (只)', backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#3fa88c', textStyle: { color: '#1a3e3a' } },
+                visualMap: {
+                    min: 0, max: maxVal, left: 20, bottom: 20, text: ['高', '低'], calculable: true,
+                    inRange: { color: ['#ccece6', '#7fcdbb', '#41b6c4', '#2c7fb8', '#1d4f7c'] },
+                    textStyle: { color: '#1a4a55', fontWeight: 500 }, itemWidth: 14, itemHeight: 100
+                },
+                series: [{
+                    name: '观测量', type: 'map', map: 'tianjin', roam: true, zoom: 1.1,
+                    label: { show: true, fontSize: 11, color: '#123e45', fontWeight: 500, formatter: function (params) { return params.name; } },
+                    itemStyle: { borderColor: '#ffffff', borderWidth: 1.2, shadowBlur: 8, shadowColor: 'rgba(0, 80, 70, 0.15)' },
+                    emphasis: { label: { show: true, fontWeight: 'bold', color: '#0a3b3b' }, itemStyle: { areaColor: '#f7e05e', borderColor: '#2b9e8f', borderWidth: 1.5 } },
+                    data: mapData
+                }]
+            };
+
+            mapChart.setOption(option, true);
+
+            mapChart.off('georoam');
+            mapChart.on('georoam', function (params) {
+                var zoom = mapChart.getOption().series[0].zoom || 1;
+                var showCityLabels = zoom > 1.4;
+                mapChart.setOption({
+                    series: [{ label: { formatter: function (p) { if (showCityLabels) return p.name; return hideLabels.includes(p.name) ? '' : p.name; } } }]
+                });
+            });
+
+            var initialZoom = mapChart.getOption().series[0].zoom || 1;
+            var initialShow = initialZoom > 1.4;
+            mapChart.setOption({
+                series: [{ label: { formatter: function (p) { if (initialShow) return p.name; return hideLabels.includes(p.name) ? '' : p.name; } } }]
+            });
+        }
+
+        function renderBarChart(data) {
+            var cityCounts = {};
+            data.forEach(function (item) {
+                if (!item.district) return;
+                var dName = item.district.endsWith('区') ? item.district : item.district + '区';
+                if (!cityCounts[dName]) cityCounts[dName] = 0;
+                cityCounts[dName] += Number(item.count) || 0;
+            });
+
+            var sortedData = Object.keys(cityCounts).map(key => ({ name: key, value: cityCounts[key] })).sort((a, b) => a.value - b.value);
+
+            var option = {
+                title: { text: '各区县数量统计', left: 'center', top: 4, textStyle: { fontSize: 14, color: '#0b4b55', fontWeight: 500 } },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#3fa88c' },
+                grid: { left: '5%', right: '8%', bottom: '8%', top: '18%', containLabel: true },
+                xAxis: { type: 'value', axisLabel: { formatter: function (value) { return value >= 10000 ? (value / 10000) + '万' : value; }, color: '#1c5e6e' }, splitLine: { lineStyle: { color: '#d0e8e2', type: 'dashed' } } },
+                yAxis: { type: 'category', data: sortedData.map(item => item.name), axisLabel: { color: '#1c5e6e', fontWeight: 500 }, axisLine: { lineStyle: { color: '#a3cfda' } } },
+                series: [{
+                    type: 'bar', data: sortedData.map(item => item.value),
+                    itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#3fa88c' }, { offset: 0.6, color: '#2b9e8f' }, { offset: 1, color: '#1d7f6e' }]), borderRadius: [0, 8, 8, 0], shadowBlur: 6, shadowColor: 'rgba(40, 140, 120, 0.3)' },
+                    barWidth: '60%', label: { show: true, position: 'right', color: '#0a4b55', fontWeight: 500, fontSize: 11, formatter: function (p) { return p.value >= 10000 ? (p.value / 10000).toFixed(1) + '万' : p.value; } }
+                }]
+            };
+            barChart.setOption(option, true);
+        }
+
+        function renderLineChart(data, yearFilter) {
+            var allYearsSet = new Set();
+            rawData.forEach(function (item) {
+                var y = normalizeYear(item.year);
+                if (y) allYearsSet.add(y);
+            });
+            var sortedYears = Array.from(allYearsSet).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+            var xAxisData = [];
+            var yAxisData = [];
+            var chartTitle = '';
+
+            if (yearFilter === 'all') {
+                chartTitle = '数量年度变化趋势';
+                xAxisData = sortedYears;
+                var yearCounts = {};
+                sortedYears.forEach(function (y) { yearCounts[y] = 0; });
+                data.forEach(function (item) {
+                    var y = normalizeYear(item.year);
+                    if (y && yearCounts[y] !== undefined) yearCounts[y] += Number(item.count) || 0;
+                });
+                yAxisData = xAxisData.map(function (y) { return yearCounts[y]; });
+            } else {
+                chartTitle = yearFilter + '年 数量月度变化趋势';
+                xAxisData = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+                var monthCounts = {};
+                xAxisData.forEach(function (m) { monthCounts[m] = 0; });
+                data.forEach(function (item) {
+                    var m = normalizeMonth(item.month);
+                    if (m && monthCounts[m] !== undefined) monthCounts[m] += Number(item.count) || 0;
+                });
+                yAxisData = xAxisData.map(function (m) { return monthCounts[m]; });
+            }
+
+            var option = {
+                title: { text: chartTitle, left: 'center', top: 4, textStyle: { fontSize: 14, color: '#0b4b55', fontWeight: 500 } },
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#3fa88c', formatter: function (params) { var p = params[0]; return p.axisValue + '<br/>' + p.seriesName + '：' + p.value + ' 只'; } },
+                grid: { left: '5%', right: '8%', bottom: '10%', top: '20%', containLabel: true },
+                xAxis: { type: 'category', data: xAxisData, boundaryGap: false, axisLabel: { color: '#1c5e6e' }, axisLine: { lineStyle: { color: '#a3cfda' } } },
+                yAxis: { type: 'value', axisLabel: { formatter: function (value) { return value >= 10000 ? (value / 10000) + '万' : value; }, color: '#1c5e6e' }, splitLine: { lineStyle: { color: '#d0e8e2', type: 'dashed' } } },
+                series: [{
+                    name: '数量', type: 'line', data: yAxisData, smooth: true, connectNulls: true, symbol: 'circle', symbolSize: 8,
+                    itemStyle: { color: '#2b9e8f', borderColor: '#ffffff', borderWidth: 2, shadowBlur: 6, shadowColor: 'rgba(43, 158, 143, 0.5)' },
+                    lineStyle: { width: 3, color: '#3fa88c', shadowBlur: 10, shadowColor: 'rgba(63, 168, 140, 0.4)' },
+                    areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(63, 168, 140, 0.5)' }, { offset: 1, color: 'rgba(63, 168, 140, 0.08)' }]) }
+                }]
+            };
+            lineChart.setOption(option, true);
+        }
+
+        $('#aboutBtn').on('click', function () { $('#aboutModal').css('display', 'flex'); });
+        $('#closeModal').on('click', function () { $('#aboutModal').css('display', 'none'); });
+        $('#aboutModal').on('click', function (e) { if (e.target === this) { $(this).css('display', 'none'); } });
+
+        window.addEventListener('resize', function () {
+            mapChart.resize();
+            barChart.resize();
+            lineChart.resize();
+        });
+    });
+  </script>
+</body>
+</html>
