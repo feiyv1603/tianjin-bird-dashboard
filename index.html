@@ -4,11 +4,9 @@
   <meta charset="UTF-8">
   <title>天津市鸟类分布 · 多维大屏</title>
   
-  <!-- 引入 ECharts 和 jQuery -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
   
-  <!-- 【引入改造后的 JS 数据文件】 -->
   <script src="data_tianjin.js"></script>
   <script src="data_final.js"></script>
   <script src="data_info.js"></script>
@@ -273,12 +271,12 @@
 
   <div class="container">
     <div class="top-bar">
-      <h1 class="main-title">天津市鸟类分布 · 多维大屏</h1>
+      <h1 class="main-title">天津市观鸟数据统计·仪表盘</h1>
       <div class="sub-title">
-        大数据可视化
+        大数据可视化基础
         <div class="hover-tooltip">
           <div class="tip-row"><span class="tip-value">南开大学·大数据可视化基础</span></div>
-          <div class="tip-row"><span class="tip-value highlight">特别鸣谢：指导老师高裴裴</span></div>
+          <div class="tip-row"><span class="tip-value highlight">指导老师：高裴裴</span></div>
         </div>
       </div>
     </div>
@@ -337,13 +335,11 @@
         var birdInfo = {};
         var hideLabels = ['和平区', '河东区', '河西区', '南开区', '河北区', '红桥区'];
 
-        // 检查数据变量是否加载成功
         if (typeof tjGeojson === 'undefined' || typeof finalData === 'undefined' || typeof birdInfoData === 'undefined') {
             alert("数据加载失败！\n\n请检查您的文件夹里是否包含 data_tianjin.js, data_final.js, data_info.js，并且确认这三个文件是否正确设置了变量名（var xxx = ）。");
             return;
         }
 
-        // 赋值
         var geoJson = tjGeojson;
         rawData = finalData;
         birdInfo = birdInfoData;
@@ -414,7 +410,6 @@
                 $('#birdIntro').text('当前显示天津市所有记录鸟类的综合分布。请选择特定鸟类以查看详细档案及专项图表。');
             } else {
                 var info = birdInfo[bird] || {};
-                // 兼容你的 data_info.js 里图片路径，如果读取不到就用默认图
                 $('#birdImg').attr('src', info.image || 'https://via.placeholder.com/400x200?text=No+Image');
                 $('#birdName').text(bird);
                 $('#birdOrder').text(info.order || '未知');
